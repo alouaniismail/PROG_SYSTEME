@@ -1,0 +1,212 @@
+1-Introduction:
+2-Appels système:
+=>située entre le kernel (le noyau) et le mode utilisateur commandes().
+cp par exemple cache la complexité mais agit juste au niveau des standards libs mais open fait une execution depuis les droits du noyau (privilège) via une éxécution C (syscall).
+%m printf
+strace executable (strace echo Hello world!)
+errno
+void perror(const char* buf)
+3-Fichiers:
+important: les inodes:
+Un nœud d'index ou inode (contraction de l'anglais index et node) est une structure de données contenant des informations à propos d'un fichier ou répertoire stocké dans certains systèmes de fichiers (notamment de type Linux/Unix). À chaque fichier correspond un numéro d'inode (i-number) dans le système de fichiers dans lequel il réside, unique au périphérique sur lequel il est situé.
+
+Chaque fichier a un seul inode, même s'il peut avoir plusieurs noms (chacun de ceux-ci fait référence au même inode). Chaque nom est appelé lien.
+
+Les inodes peuvent, selon le système de fichiers, contenir aussi des informations concernant le fichier, tel que son créateur (ou propriétaire), son type d'accès (par exemple sous Unix : lecture, écriture et exécution), etc. 
+**Manipulation de dup:**
+Dans Unix-like systèmes d'exploitation, duper (abréviation de "duplicate") et dup2 appels système créer une copie d'un descripteur de fichier. Ce nouveau descripteur ne se comporte pas en réalité comme une copie, mais comme un alias de l'ancien.
+tst1.c.(A consulter)
+>
+Duplication des descripteurs de fichier
+Chaque processus a une table de descripteurs de fichier. Cette table
+contient les descripteurs de fichier du processus. Chaque descripteur pointe
+vers un fichier ouvert pour le processus. Lorsqu’un processus est créé, le
+système lui ouvre automatiquement trois fichiers :
+– L’entrée standard auquel il associe le descripteur 0.
+– La sortie standard auquel il associe le descripteur 1.
+– La sortie standard auquel il associe le descripteur 2.
+Si le processus ouvre explicitement un fichier, le descripteur associé au
+fichier serait 3 et ainsi de suite.(fd1 exemple dans le fichier C)
+int dup (int oldfd);
+int dup2(int oldfd, int newfd);
+L’appel système dup() permet d’associer à un même fichier plusieurs des-
+cripteurs(plusieurs descripteurs pointent vers le même fichier c'est pour cela write(fd2,"wor",3) opère sur le fichier test associé à fd1 dès la création(int open(const char* path, int flags, ... (0644))) . dup() associe le plus petit descripteur libre au fichier pointé
+par le descripteur oldfd(c'est pour cela int fd2=dup(fd1) a associé le plus petit descripteur libre qui est fd2 au fichier pointé par fd1 soit test). L’appel système dup2() associe le descripteur newfd au fichier pointé par oldfd(int fd3=dup2(3,2) associe le descripteur 2 (fd2) au fichier pointé par fd3)).
+EN RESUME:
+a la création d'un descripteur fd de type int via open(const char* path, int flags, ... (0644)), on crée le fd1 qui sera 3 associé à test ici (dup.c). puis on ecrit "hello" dedans avec la fonction ssize_t write(int fd, const void* buffer, size_t count) puis on fait une duplication avec fd2 de type int = dup(fd1), now: le test est associe à 2 descripteurs: fd1 et fd2. On ecrit dans fd2 wor avec la même fonction mais fd2###fd1, ca va valoir 4 ici puis on fait un close(0) on crée un fd3=dup(fd1) là fd3 vaut 0 associé à test. Ce dernier a 3 descripteurs de fichiers now. on ecrit dans le 3ieme ld. 
+!!!!!>>>>
+PUIS, on fait: dup2(3,2) qui fait associer le 2 au fichier pointe par le 3. 
+En gros:
+fd1 et fd2 descrivent le même fichier.
+fd1 et fd3 pareils.
+reste fd2 et fd3 (3 regroupements (on peut choisir 2 soit 3 possiblitées)) on dit que le fd2 doit pointer sur celui du fd3 qui est nouveau soit: dup2(3,2).
+dup2(3,2)<=>le fd qui est égal à 2 pointe sur le fichier pointe par le fd3 qui est egal a 3.
+(pour éviter des problèmes)
+fd1=3
+fd2=4
+fd3=0 après close(0)
+pour faire un write(2,"!\n",2) il faut que 2 soit associé on fait:
+dup2(3,2)=>le 2 pointe vers test now le write apres ecrit bien d'ou le resultat.
+**Manipulation de fork:**
+facile
++pid_t wait(int* status_pointer);
++int sleep(unsigned int s);
+-------------------------
+1/Recuperation infos sur un inode:
+1ere fonction: infos sur un fichier :>>
+	int stat(const char* path, strauct stat* buf);
+struct stat est composé de 13 champs:
+dev_t st_dev Périphérique
+ino_t st_ino Numéro i-noeud
+mode_t st_mode protection et type
+nlink_t st_nlink nbr liens matèriels
+uid_t st_uid UID propriétaire
+gid_t st_gid GID propriétaire
+dev_t st_rdev type périphérique
+off_t st_size taille totale en octets
+blksize_t st_blksize Taille de bloc pour E/S
+blkcnt_t st_blocks Nombre de blocs alloués
+time_t st_atime heure dernier acces
+time_t st_mtime heure derniere modification
+time_t st_ctime heure dernier changement d'etat
+voilà.
++++++++++++++++++++++++
+2/Structure définie pour stat et Macros pour:
+st_mode de type mode_t
+application a des fonctions:(retour booleen)
+S_ISREG: fichier normal
+S_ISLNK: lien symbolique
+S_ISSOCK: c'est un socket
+S_ISDIR: c'est un folder
+S_ISCHR: c'est un device de type caractere
+S_ISBLK: device de type bloc
+S_ISFIFO: c'est une fifo.
+fopen, fclose, fread avec FILE* pas appels systemes
+=>a ne jamais utiliser lors de ce cours.
+(utilise des FILE* au lieu des id de descripteurs de fichiers)
+fileno prend un FILE* et renvoie l'id.(le fd(file descriptor))
+fread par exemple de prototype:
+size_t fread(const char* path, size_t count, size_t offset, FILE* stream)
+ou bien fwrite..(dans le man d'un on retrouve les 2 prototypes)
+pas syscalls on s'en fiche.
+Macros interessantes:
+EACESS: pb de permission dans les chemins d'accès.
+ENOENT: chemin n'existe pas
+ELOOP: trop de liens symboliques dans le chemin(un lien pointe typiquement vers un des répertoires parent).
+type de signification macro retour 0 dans stat(const char* path, struct stat* buf).
++++++++++++++++++++++++++++++
+3/Fonctions de base surtout manipualtion des inodes et des descripteurs de fichiers:
+un inode est une structure, un fd n'est qu'un id 'symbolique'.
+...///
+read()/write()/open()/creat():
+int creat(const char* path, mode_t mode)
+restent:(voir one.c et two.c pour les 2 points precedents)
+lssek()/fcntl().
+a-lssek():
+prototype(important)
+off_t position=lssek(file_descriptor,0,SEEK_CUR);
+ici on l'utilise de cette facon:
+lssek(fd,length-1,SEEK_SET) <=> se placer un octet avant la fin désirée du fichier.
+on crée un gros fichier l'écriture commence avec:
+lssek(fd,length-1,SEEK_SET): se placer un octet avant la fin du fichier désirée.
+le length est égal à:
+(size_t) atoi(argv[2]) * megabyte avec megabyte=2**20.
+de type size_t.
+PUIS:
+write(fd,'a',1) buffer de type char* après:
+lssek(fd,1,SEEK_SET) donne en ls -l test: (test c'est le fichier) 2 octets voila.
+reste fcnlt:
+par exemple dans five.c:
+rVal & O_ACCMODE avec rVal=fcntl(fd("test"),F_GETFL) qui veut dire variable d'enregistrement(retrivements) des flags de cet id de fichier, avec la 1ere commande et les flags disponibles decvrivant la manièere dont on aura acces prochainement au fichier en général, on a soit en lecture seul soit en rw soit en execl soit no idea. La variable est fflags ici dans five.c
+fini les fonctions de manipulations de descripteurs de fichiers.
++++++++++++++++++++++++++++++++++++++++++++++
+4/Fonctions de base surtout ceux concernant les manipulations des inodes:
+stat deja FAIT.
+access():
+int access(const char* path, int mode)
+avec mode de type:
+R_OK/W_OK/X_OK(/F_OK(le fichier existe?)).
+problemes:
+EROFS: demande d'acces d'ecriture a un systeme de fichier read_only.
+ETXTBSY: meme chose mais a un executable en cours d'execution.
+=>Voir six.c.
+extern int errno
+Error number(decrivant les macros precedentes): errno.("include<sys/types;wait.h( 2 )).///
+<=>Tester les autorisations d'accès.
+mknod:
+on doit include sys/stat.h TOUJOURS.
+prototype:
+int mknod(const char* path, mode_t mode, dev_t dev)
+on l'applique souvent comme cela:(c'est pour la création de fichiers de n'importe quel type)
+int fdr;
+fdr=mknod("testfile",0777,(dev_t)0);
+avec le 2ieme argument le mode: l'un des modes possibles de fichier, avec un ou logique avec les permissions.
+<=>Création de fichiers plûtot inspection des autorisations via le int mode au lieu d'un mode_t mode (macros en | ou bien simple nombre de chmod precede d'un 0) et d'un dernier (2ieme/3ieme argument) dev_t dev.
+link()/unlink():
+(voir pour access six.c et mknod seven.c)
+lien hard/soft links:
+>>>>>>>>>>>>>>>>>>>
+En informatique, on nomme lien physique ou lien matériel, voire lien dur (en anglais hard link) un pointeur sur des données physiques d'un volume de stockage. Ce pointeur est relatif au volume physique ou logique considéré, ce qui permet le changement de support sans rupture du lien en question.
+
+La plupart des anciens systèmes de fichiers ne possédaient que des liens physiques. Avec l'introduction des systèmes de type Unix, il est devenu possible d'associer plusieurs noms aux mêmes données. Bien que possédant différents noms, les données réelles sont uniques. Un compteur de références permet de savoir combien de noms pointent sur les mêmes données, et donc de savoir si l'effacement d'un nom doit être suivi d'une récupération de l'espace alloué aux données ou non : c'est le cas uniquement lorsqu'on efface le dernier nom du fichier.
+
+Les liens physiques ne peuvent correspondre qu'à des données existantes sur le même système de fichiers. Cette difficulté est contournée par un autre dispositif, celui des liens symboliques. 
+
+Un lien symbolique (en anglais soft link, symbolic link ou symlink par troncation) est une entrée spéciale de répertoire dans les systèmes Unix ou type Unix modernes qui permet de référencer de manière quasi transparente d'autres entrées de répertoire, typiquement, des fichiers ordinaires ou des répertoires, y compris sur des volumes de stockage différents (ce que ne permettait pas un lien ordinaire). Il se comporte comme un alias d'un fichier ordinaire ou d'un répertoire.
+
+On appelle déréférencement l'action du système d'exploitation consistant à remplacer à la volée le nom du lien symbolique par celui qu'il pointe.
+
+L'appel système permettant de retrouver le fichier pointé par le lien est readlink. 
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>EN RESUME:
+Il existe deux types de liens, à savoir un lien symbolique et un lien physique vers un fichier. La bibliothèque C a une fonction link() qui crée un nouveau lien physique vers un fichier existant. La fonction symlink() pour créer un lien symbolique. Si le fichier/chemin du lien existe déjà, il ne sera pas écrasé. Les fonctions link() et symlink() renvoient 0 en cas de succès. Si une erreur se produit, alors -1 est renvoyé. Sinon, « errno » (numéro d'erreur) est défini de manière appropriée.
+
+Lien symbolique : un lien symbolique (également appelé lien symbolique) agit comme un pointeur ou une référence au nom de fichier. Il n'accède pas aux données disponibles dans le fichier d'origine. Si le fichier précédent est supprimé, le lien symbolique pointera vers un fichier qui n'existe plus.
+
+Lien physique : un lien physique agit comme une copie (en miroir) du fichier sélectionné. Il accède aux données disponibles dans le fichier d'origine.
+Si le fichier précédemment sélectionné est supprimé, le lien physique vers le fichier contiendra toujours les données de ce fichier.
+
+=>Création d'un lien physique:((link()))::
+int link(const char* oldpath, const char* newpath)
+pas possible de faire un lien vers des repertoires et le newpath ne doit pas exister, son existence doit etre creee par cet appel.
+TJRS: 0 pas erreur, -1 sinon(errno (extern int errno) definit l'erreur en question(id d'une erreur en soit..///)).
+=>Création d'un symlink():
+le fichier devient encadre rouge seule 2ieme difference.
+vient la derniere fonction a traiter:
+unlink():
+int unlink(const char* newpath)//ou const char* pathname.
+probleme:
+EISDIR: le fichier est un repertoire.
+Erreurs de ssize_t read() par avance;
+EINTR: interrompu par un signal avant toute lecture.
+COMMENTAIRES avant de passer aux deux dernieres fonctions: chmod et chwon sur le int close(int fd);
+>
+****:::::
+cela ferme un descripteur de fichier.
+lorsqu'il s'agit du dernier descripteur de fichier pointant sur un fichier donné, et que celui-ci a été détruit avec unlink(ce dernier supprime efface fait sauter les fichiers pointeurs constituant les hards/softs links), alors il est effectivement détruit après cet appel.(si on considere un cas complexe ca marche TOUJOURS)./////////
+
+../////////.
+avant de passer aux 2 dernieres fonctions: on fera 3 fonctionnalitées:
+lecture d'un fichier
+manipulation des repertoires(*)_1
+parcours d'un repertoire(les commentaires inclusent ce qu'on doit ecrire la).(*)_2
+>CHMOD()/CHWON():
+chmod() dans l'exemple:
+chmod(const char* path, int mode) avec mode=strtol(mode,0,8) et mode via: char mode[]="0???" les 3 ? definissent les permissions en octal de chaque user/group-user/other users..///
+=>Pour la derniere(chwon()):
+>>>
+man 2 chwon
+#include <sys/types.h>
+#include <unistd.h>
+
+int chown(const char *path, uid_t owner, gid_t group);
+changement de propriétaire user et de groupe..
+difficile a mettre en oeuvre dans un environnement de génie logiciel simple et optimal.
+VOILA.
+fini avec les fichiers(voir les compléments(ten1;ten2.c tous les deux --).///
+via: (*)_1 && (*)_2.
+FIN FICHIERS.
+FIN:
+Intro
+Appels systemes
+Fichiers.
+----------------------.///
